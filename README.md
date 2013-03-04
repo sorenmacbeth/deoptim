@@ -13,7 +13,7 @@ A Clojure library designed to ... well, that part is up to you.
       (areduce ^doubles squares idx ret (double 0)
                (+ ret (aget ^doubles squares idx)))))
 
-  (optimize sphere 0.2 0.1 100 10 -100 100 150)
+(optimize sphere 0.2 0.1 100 10 -100 100 150)
 ```
 
 ## License
