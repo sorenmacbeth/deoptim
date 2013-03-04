@@ -71,11 +71,11 @@
   "Generate initial random population of size `size`
    as a seq of Candidate records."
   [size d ^double lower-bound ^double upper-bound]
-  (into [] (for [_ (range size)
-         :let [^doubles v (init-values d lower-bound upper-bound)
-               cr 0.5
-               f 0.5]]
-     (Candidate. v cr f Double/POSITIVE_INFINITY))))
+  (for [_ (range size)
+        :let [^doubles v (init-values d lower-bound upper-bound)
+              cr 0.5
+              f 0.5]]
+    (Candidate. v cr f Double/POSITIVE_INFINITY)))
 
 (defn choose-p-best
   "Choose a random Candidate c from the p-best candidates
@@ -117,8 +117,9 @@
   (let [mean-f (lehmer-mean 2 f-set)]
     (+ (* (- 1 c) mu-f) (* c mean-f))))
 
-(defn generate-trial-values
-  "Generate a double array of trial values."
+(defn mutate
+  "Generate a mutated double array based off of
+   current values."
   [p generation c]
   (let [^double f (:mutation-factor c)
         ^doubles x (:values c)
@@ -127,21 +128,26 @@
         ^doubles x2 (:values (choose-random c generation))]
     (assoc c :trial-values (darr+ x (darr+ (darr* (darr- p-best x) f) (darr* (darr- x1 x2) f))))))
 
-(defn mutate
-  "Mutate a candidate record."
-  [jrand c]
-  (let [^doubles u (:values c)
+(defn crossover
+  "Perform crossover of mutated values.
+   Ensure that `lower-bound` and `upper-bound`
+   are respected."
+  [jrand lower-bound upper-bound c]
+  (let [^doubles x (:values c)
         ^doubles v (:trial-values c)]
-    (assoc c :values (amap ^doubles u idx ret
-                           (if (or (= idx jrand) (< (.nextDouble RANDOM) (:crossover-prob c)))
-                             (aget ^doubles v idx)
-                             (aget ^doubles u idx))))))
+    (assoc c :trial-values (amap ^doubles x idx ret
+                                 (if (or (= idx jrand) (< (.nextDouble RANDOM) (:crossover-prob c)))
+                                   (cond
+                                    (< (aget ^doubles v idx) lower-bound) (/ (+ (aget ^doubles x idx) lower-bound) 2)
+                                    (> (aget ^doubles v idx) upper-bound) (/ (+ (aget ^doubles x idx) upper-bound) 2)
+                                    :else (aget ^doubles v idx))
+                                   (aget ^doubles x idx))))))
 
 (defn selection
   "Perform selection amongst candidate and trial arrays."
   [fitness-fn c]
-  (let [fit (fitness-fn (:values c))
-        trial-fit (fitness-fn (:trial-values c))]
+  (let [^double fit (fitness-fn (:values c))
+        ^double trial-fit (fitness-fn (:trial-values c))]
     (if (< trial-fit fit)
       (-> (assoc c :values (:trial-values c) :fitness trial-fit) (dissoc :trial-values))
       (-> (assoc c :fitness fit) (dissoc :trial-values)))))
@@ -171,13 +177,16 @@
                                                  (> sample 1) 1.0
                                                  (<= sample 0) (recur (.sample cauchy))
                                                  :else sample)))))
-                          (pmap #(generate-trial-values p generation %))
-                          (pmap #(mutate jrand %))
-                          (pmap #(selection fitness-fn %)))]
-      (if (zero? maxiter)
-        (first (sort-by :fitness #(compare %2 %1) new-generation))
-        (recur (sort-by :fitness #(compare %2 %1) new-generation)
-               (update-mu-cr c mu-cr (into #{} (map :crossover-prob new-generation)))
-               (update-mu-f c mu-f (into #{} (map :mutation-factor new-generation)))
-               []
-               (dec maxiter))))))
+                          (pmap #(mutate p generation %))
+                          (pmap #(crossover jrand lower-bound upper-bound %))
+                          (pmap #(selection fitness-fn %)))
+          sorted-generation (sort-by :fitness new-generation)]
+      (if (neg? maxiter)
+        (first sorted-generation)
+        (do
+          (println (str "[" maxiter "] best fitness: " (:fitness (first sorted-generation))))
+          (recur sorted-generation
+                (update-mu-cr c mu-cr (into #{} (map :crossover-prob new-generation)))
+                (update-mu-f c mu-f (into #{} (map :mutation-factor new-generation)))
+                []
+                (dec maxiter)))))))
