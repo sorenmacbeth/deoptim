@@ -5,6 +5,8 @@ A Clojure library designed to ... well, that part is up to you.
 ## Usage
 
 ```clojure
+(use 'deoptim.core)
+
 (defn sphere [^doubles xs]
     (let [^doubles squares (amap ^doubles xs idx ret
                                  (Math/pow (aget ^doubles xs idx) 2))]
