@@ -148,14 +148,21 @@
    are respected."
   [jrand lower-bound upper-bound c]
   (let [^doubles x (:values c)
-        ^doubles v (:trial-values c)]
-    (assoc c :trial-values (amap ^doubles x idx ret
-                                 (if (or (= idx jrand) (< (.nextDouble RANDOM) (:crossover-prob c)))
-                                   (cond
-                                    (< (aget ^doubles v idx) lower-bound) (/ (+ (aget ^doubles x idx) lower-bound) 2)
-                                    (> (aget ^doubles v idx) upper-bound) (/ (+ (aget ^doubles x idx) upper-bound) 2)
-                                    :else (aget ^doubles v idx))
-                                   (aget ^doubles x idx))))))
+        ^doubles v (:trial-values c)
+        crossover-prob (:crossover-prob c)]
+    (assoc c :trial-values
+           (into-array Double/TYPE
+                       (map
+                        (fn [idx value trial-value]
+                          (if (or (< (.nextDouble RANDOM) crossover-prob)
+                                  (= idx jrand))
+                            (cond
+                             (< trial-value lower-bound) (/ (+ value lower-bound) 2)
+                             (> trial-value upper-bound) (/ (+ value upper-bound) 2)
+                             :else trial-value)
+                            value))
+                        (range (count x)) ; normal map-indexed only takes 1 coll arg
+                        x v)))))
 
 (defn selection
   "Perform selection amongst candidate and trial arrays."
