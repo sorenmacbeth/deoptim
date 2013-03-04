@@ -13,11 +13,19 @@
 (def RANDOM
   (Random.))
 
+(defn random-double
+  [^Random r]
+  (.nextDouble r))
+
+(defn random-int
+  [^Random r x]
+  (.nextInt r x))
+
 (defn next-double
   "Generate a double between start and end drawn from
    a uniform distribution."
   ^double [^double min ^double max]
-  (let [^double d (.nextDouble RANDOM)]
+  (let [^double d (random-double RANDOM)]
     (+ min (* d (- max min)))))
 
 (defn doubles-seq
@@ -83,21 +91,21 @@
   [p c generation]
   (let [np (count generation)
         p-bests (int (Math/floor (* (* 1 p) np)))
-        p-best (nth generation (.nextInt RANDOM p-bests))]
+        p-best (nth generation (random-int RANDOM p-bests))]
     (loop [p-best p-best]
       (if-not (darr= (:values c) (:values p-best))
         p-best
-        (recur (nth generation (.nextInt RANDOM p-bests)))))))
+        (recur (nth generation (random-int RANDOM p-bests)))))))
 
 (defn choose-random
   "Choose a random Candidate from generation."
   [c generation]
   (let [np (count generation)
-        r (nth generation (.nextInt RANDOM np))]
+        r (nth generation (random-int RANDOM np))]
     (loop [r r]
       (if-not (darr= (:values c) (:values r))
         r
-        (recur (nth generation (.nextInt RANDOM np)))))))
+        (recur (nth generation (random-int RANDOM np)))))))
 
 (defn lehmer-mean
   "Calculate the Lehmer mean of `coll`."
@@ -154,7 +162,7 @@
            (into-array Double/TYPE
                        (map
                         (fn [idx value trial-value]
-                          (if (or (< (.nextDouble RANDOM) crossover-prob)
+                          (if (or (< (random-double RANDOM) crossover-prob)
                                   (= idx jrand))
                             (cond
                              (< trial-value lower-bound) (/ (+ value lower-bound) 2)
@@ -200,7 +208,7 @@
          maxiter maxiter]
     (let [^NormalDistribution ndist (NormalDistribution. mu-cr 0.1)
           ^CauchyDistribution cdist (CauchyDistribution. mu-f 0.1)
-          jrand (.nextInt RANDOM d)
+          jrand (random-int RANDOM d)
           new-generation (into [] (pmap
                                    (evolve-candidate fitness-fn generation archive ndist cdist p jrand lower-bound upper-bound) generation))
           sorted-generation (sort-by :fitness new-generation)]
