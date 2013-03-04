@@ -71,11 +71,11 @@
   "Generate initial random population of size `size`
    as a seq of Candidate records."
   [size d ^double lower-bound ^double upper-bound]
-  (for [_ (range size)
-        :let [^doubles v (init-values d lower-bound upper-bound)
-              cr 0.5
-              f 0.5]]
-    (Candidate. v cr f Double/POSITIVE_INFINITY)))
+  (into [] (for [_ (range size)
+                 :let [^doubles v (init-values d lower-bound upper-bound)
+                       cr 0.5
+                       f 0.5]]
+             (Candidate. v cr f Double/POSITIVE_INFINITY))))
 
 (defn choose-p-best
   "Choose a random Candidate c from the p-best candidates
@@ -117,10 +117,24 @@
   (let [mean-f (lehmer-mean 2 f-set)]
     (+ (* (- 1 c) mu-f) (* c mean-f))))
 
+(defn update-cr
+  "Update the crossover probability of a Candidate."
+  [^NormalDistribution ndist c]
+  (assoc c :crossover-prob (.sample ndist)))
+
+(defn update-f
+  "Update the mutation factor of a Candidate."
+  [^CauchyDistribution cdist c]
+  (assoc c :mutation-factor (loop [sample (.sample cdist)]
+                              (cond
+                               (> sample 1) 1.0
+                               (<= sample 0) (recur (.sample cdist))
+                               :else sample))))
+
 (defn mutate
   "Generate a mutated double array based off of
    current values."
-  [p generation c]
+  [p generation archive c]
   (let [^double f (:mutation-factor c)
         ^doubles x (:values c)
         ^doubles p-best (:values (choose-p-best p c generation))
@@ -145,15 +159,29 @@
 
 (defn selection
   "Perform selection amongst candidate and trial arrays."
-  [fitness-fn c]
+  [fitness-fn archive c]
   (let [^double fit (fitness-fn (:values c))
         ^double trial-fit (fitness-fn (:trial-values c))]
     (if (< trial-fit fit)
       (-> (assoc c :values (:trial-values c) :fitness trial-fit) (dissoc :trial-values))
       (-> (assoc c :fitness fit) (dissoc :trial-values)))))
 
+(defn evolve-candidate*
+  "Evolve a single Candidate from a generation."
+  [fitness-fn generation archive ndist cdist p jrand lower-bound upper-bound c]
+  (->> (update-cr ndist c)
+       (update-f cdist)
+       (mutate p generation archive)
+       (crossover jrand lower-bound upper-bound)
+       (selection fitness-fn archive)))
+
+(defn evolve-candidate [fitness-fn generation archive ndist cdist p jrand lower-bound upper-bound]
+  (partial evolve-candidate* fitness-fn generation archive ndist cdist p jrand lower-bound upper-bound))
+
 ;; fitness-fn should accept a single double array as input and
 ;; return a double.
+
+;; TODO: implement archive
 (defn optimize
   "Do optimize the supplied function `fitness-fn` using the
    differential evolution algorithm."
@@ -163,30 +191,27 @@
          mu-f 0.5
          archive []
          maxiter maxiter]
-    (let [norm (NormalDistribution. mu-cr 0.1)
-          cauchy (CauchyDistribution. mu-f 0.1)
+    (let [^NormalDistribution ndist (NormalDistribution. mu-cr 0.1)
+          ^CauchyDistribution cdist (CauchyDistribution. mu-f 0.1)
           jrand (.nextInt RANDOM d)
-          new-generation (->>
-                          (pmap #(update-in % [:crossover-prob]
-                                            (fn [_]
-                                              (.sample norm))) generation)
-                          (pmap #(update-in % [:mutation-factor]
-                                            (fn [_]
-                                              (loop [sample (.sample cauchy)]
-                                                (cond
-                                                 (> sample 1) 1.0
-                                                 (<= sample 0) (recur (.sample cauchy))
-                                                 :else sample)))))
-                          (pmap #(mutate p generation %))
-                          (pmap #(crossover jrand lower-bound upper-bound %))
-                          (pmap #(selection fitness-fn %)))
+          new-generation (into [] (pmap
+                                   (evolve-candidate fitness-fn generation archive ndist cdist p jrand lower-bound upper-bound) generation))
           sorted-generation (sort-by :fitness new-generation)]
       (if (neg? maxiter)
         (first sorted-generation)
         (do
-          (println (str "[" maxiter "] best fitness: " (:fitness (first sorted-generation))))
+          #_(println (str "[" maxiter "] best fitness: " (:fitness (first sorted-generation))))
           (recur sorted-generation
                 (update-mu-cr c mu-cr (into #{} (map :crossover-prob new-generation)))
                 (update-mu-f c mu-f (into #{} (map :mutation-factor new-generation)))
                 []
                 (dec maxiter)))))))
+
+(comment
+  (defn sphere [^doubles xs]
+    (let [^doubles squares (amap ^doubles xs idx ret
+                                 (Math/pow (aget ^doubles xs idx) 2))]
+      (areduce ^doubles squares idx ret (double 0)
+               (+ ret (aget ^doubles squares idx)))))
+
+  (optimize sphere 0.2 0.1 100 10 -100 100 150))
