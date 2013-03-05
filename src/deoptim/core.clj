@@ -115,13 +115,13 @@
 
 (defn update-mu-cr
   "Update `mu-cr` using constant `c`."
-  [c mu-cr cr-set]
+  ^double [c mu-cr cr-set]
   (let [mean-cr (lehmer-mean 1 cr-set)]
     (+ (* (- 1 c) mu-cr) (* c mean-cr))))
 
 (defn update-mu-f
   "Update `mu-f` using constant `c`."
-  [c mu-f f-set]
+  ^double [c mu-f f-set]
   (let [mean-f (lehmer-mean 2 f-set)]
     (+ (* (- 1 c) mu-f) (* c mean-f))))
 
