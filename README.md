@@ -1,5 +1,7 @@
 # deoptim
 
+[![Build Status](https://secure.travis-ci.org/sorenmacbeth/deoptim.png?branch=master)](http://travis-ci.org/sorenmacbeth/deoptim)
+
 A Clojure library designed to ... well, that part is up to you.
 
 ## Usage
