@@ -1,4 +1,4 @@
-(defproject deoptim "0.1.0"
+(defproject deoptim "0.1.1-SNAPSHOT"
   :description "Differential Evolution Optimizer"
   :url "http://github.com/sorenmacbeth/deoptim"
   :license {:name "Eclipse Public License"
