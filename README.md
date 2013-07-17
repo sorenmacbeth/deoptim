@@ -2,7 +2,16 @@
 
 [![Build Status](https://secure.travis-ci.org/sorenmacbeth/deoptim.png?branch=master)](http://travis-ci.org/sorenmacbeth/deoptim)
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure implementation of the Differential Evolution global
+optimization algorithm.
+
+To use in your leiningen projects add:
+
+```clojure
+[deoptim "0.1.0"]
+```
+
+to your project.clj
 
 ## Usage
 
@@ -20,6 +29,6 @@ A Clojure library designed to ... well, that part is up to you.
 
 ## License
 
-Copyright © 2013 FIXME
+Copyright © 2013 Soren Macbeth
 
 Distributed under the Eclipse Public License, the same as Clojure.
